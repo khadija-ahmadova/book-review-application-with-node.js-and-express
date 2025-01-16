@@ -60,9 +60,93 @@ regd_users.post("/login", (req,res) => {
 });
 
 // Add a book review
+// Add or modify a book review
 regd_users.put("/auth/review/:isbn", (req, res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+    // Extract the ISBN from the request parameters
+    const isbn = req.params.isbn;
+    
+    // Check if the book exists
+    if (!books[isbn]) {
+        return res.status(404).json({
+            message: "Book not found"
+        });
+    }
+
+    // Get the review text
+    const review = req.body.review;
+    if (!review) {
+        return res.status(400).json({
+            message: "Review text is required"
+        });
+    }
+
+    // Get the username from the session
+    // This is available because the user is authenticated
+    const username = req.session.authorization.username;
+    if (!username) {
+        return res.status(401).json({
+            message: "User not authenticated"
+        });
+    }
+
+    // Initialize the reviews object if it doesn't exist
+    if (!books[isbn].reviews) {
+        books[isbn].reviews = {};
+    }
+
+    // Add or modify the review
+    // Using username as the key ensures one review per user
+    books[isbn].reviews[username] = review;
+
+    // Return success response with the updated reviews
+    return res.status(200).json({
+        message: "Review successfully posted/updated",
+        book: books[isbn].title,
+        reviews: books[isbn].reviews
+    });
+});
+
+// Delete a book review
+regd_users.delete("/auth/review/:isbn", (req, res) => {
+    // Extract the ISBN from the request parameters
+    const isbn = req.params.isbn;
+    
+    // erify that the book exists in our database
+    if (!books[isbn]) {
+        return res.status(404).json({
+            message: "Book not found",
+            error: "The specified ISBN does not exist in our database"
+        });
+    }
+    
+    // Get the username from the authenticated session
+    const username = req.session.authorization.username;
+    
+    // Check if the reviews object exists for this book
+    if (!books[isbn].reviews) {
+        return res.status(404).json({
+            message: "No reviews found for this book",
+            error: "This book has no reviews to delete"
+        });
+    }
+    
+    // Check if the user has a review for this book
+    if (!books[isbn].reviews[username]) {
+        return res.status(404).json({
+            message: "Review not found",
+            error: "You haven't submitted a review for this book"
+        });
+    }
+    
+    // Delete the user's review
+    delete books[isbn].reviews[username];
+    
+    // Return success response with updated review state
+    return res.status(200).json({
+        message: "Review successfully deleted",
+        book: books[isbn].title,
+        remainingReviews: books[isbn].reviews
+    });
 });
 
 module.exports.authenticated = regd_users;
